@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2024 Ferenc Nandor Janky <ferenj@effective-range.com>
+# SPDX-FileCopyrightText: 2024 Attila Gombos <attila.gombos@effective-range.com>
+# SPDX-License-Identifier: MIT
+
+import argparse
+from dataclasses import dataclass
+import json
+import os
+from enum import Enum
+from pathlib import Path
+import subprocess
+
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+
+
+@dataclass(frozen=True, order=True)
+class Version:
+    major: int
+    minor: int
+    patch: int
+
+    def __str__(self):
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+class ReleaseType(Enum):
+    MAJOR = "major"
+    MINOR = "minor"
+    PATCH = "patch"
+    RERELEAE = "rerelease"
+
+
+def parse_version_str(ver: str) -> Version:
+    return Version(*map(int, ver.split(".")))
+
+
+def next_version(rel_type: ReleaseType, curr_ver: Version) -> Version:
+    if rel_type == ReleaseType.MAJOR:
+        return Version(curr_ver.major + 1, 0, 0)
+    if rel_type == ReleaseType.MINOR:
+        return Version(curr_ver.major, curr_ver.minor + 1, 0)
+    if rel_type == ReleaseType.PATCH:
+        return Version(curr_ver.major, curr_ver.minor, curr_ver.patch + 1)
+    if rel_type == ReleaseType.RERELEAE:
+        return curr_ver
+    raise ValueError(f"Invalid release type:{rel_type}")
+
+
+def main():
+    args = get_args()
+    with open(os.path.join(args.C, args.pcbfile), "r") as f:
+        pcbdef = json.load(f)
+    curr_ver, next_ver = calculate_versions(args, pcbdef)
+    bump_versions(args, pcbdef, curr_ver, next_ver)
+    commit_and_tag(args, curr_ver, next_ver)
+
+
+def calculate_versions(args, pcbdef):
+    rel_type = get_release_type(args)
+    curr_ver = parse_version_str(pcbdef["version"])
+    next_ver = next_version(rel_type, curr_ver)
+    return curr_ver, next_ver
+
+
+def bump_versions(args, pcbdef, curr_ver, next_ver):
+    script = [
+        os.path.join(script_dir, "pcb-bump-rev"),
+        pcbdef["name"],
+        str(curr_ver),
+        str(next_ver),
+    ]
+    subprocess.run(script, cwd=args.C)
+    pcbdef["version"] = str(next_ver)
+    with open(os.path.join(args.C, args.pcbfile), "w") as f:
+        json.dump(pcbdef, f, indent=4)
+
+
+def commit_and_tag(args, curr_ver, next_ver):
+    subprocess.run(["git", "add", "-u"], cwd=args.C)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "-m",
+            f"Bumping release from {str(curr_ver)} to {str(next_ver)}",
+        ],
+        cwd=args.C,
+    )
+    subprocess.run(["git", "tag", "-f", f"v{str(next_ver)}"], cwd=args.C)
+    if args.publish:
+        branch = subprocess.getoutput("git rev-parse --abbrev-ref HEAD")
+        subprocess.run(["git", "push", "origin", f"{branch}:{branch}"], cwd=args.C)
+        subprocess.run(["git", "push", "origin", f"v{str(next_ver)}"], cwd=args.C)
+
+
+def get_release_type(args) -> ReleaseType:
+    if args.major:
+        return ReleaseType.MAJOR
+    if args.minor:
+        return ReleaseType.MINOR
+    if args.patch:
+        return ReleaseType.PATCH
+    if args.re:
+        return ReleaseType.RERELEAE
+    raise ValueError("Invalid release type")
+
+
+def get_pcb_file(workdir: Path) -> Path:
+    pcb_files = list(workdir.glob("*.kicad_pcb"))
+    if not pcb_files or len(pcb_files) > 1:
+        raise FileNotFoundError(
+            "No or Multiple PCB files found in the specified directory."
+        )
+    return pcb_files[0]
+
+
+def get_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    rel_group = parser.add_mutually_exclusive_group(required=True)
+    rel_group.add_argument(
+        "-M", "--major", help="create a major release", action="store_true"
+    )
+    rel_group.add_argument(
+        "-m", "--minor", help="create a minor release", action="store_true"
+    )
+    rel_group.add_argument(
+        "-p", "--patch", help="create a patch release", action="store_true"
+    )
+    rel_group.add_argument(
+        "-r",
+        "--re",
+        help="create a re-release with the current version",
+        action="store_true",
+    )
+    parser.add_argument("-C", default="./", help="path to KiCad project dir")
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        default=False,
+        help="push the commit and tag to the remote branch",
+    )
+    parser.add_argument(
+        "pcbfile", nargs="?", default="pcb.json", help="The pcb defintion file"
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    main()

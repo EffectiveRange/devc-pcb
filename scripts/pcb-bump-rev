@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# SPDX-FileCopyrightText: 2024 Ferenc Nandor Janky <ferenj@effective-range.com>
+# SPDX-FileCopyrightText: 2024 Attila Gombos <attila.gombos@effective-range.com>
+# SPDX-License-Identifier: MIT
+
+set -e  -o pipefail
+
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+    echo "Usage: $0 <pcb name> <old_rev> <new_rev>"
+    exit 1
+fi
+
+REPLACE_STR="s/\\(rev \"$2\"\\)/(rev \"$3\")/"
+
+find . -maxdepth 1 -type f \( -name "*.kicad_sch" -o -name "*.kicad_pcb" \) -exec sed -ri "$REPLACE_STR" {} \;
+
+PCB_REPLACE_STR="s/\\(gr_text \"$1 v$2\"/(gr_text \"$1 v$3\"/"
+
+find . -maxdepth 1 -type f  -name "*.kicad_pcb"  -exec sed -ri "$PCB_REPLACE_STR" {} \;
+
+CURR_DATE="$(date +%Y-%m-%d)"
+
+DATE_REPLACE_STR="s/\\(date \"[0-9]{4}-[0-9]{2}-[0-9]{2}\"\\)/(date \"$CURR_DATE\")/"
+
+find . -maxdepth 1 -type f \( -name "*.kicad_sch" -o -name "*.kicad_pcb" \) -exec sed -ri "$DATE_REPLACE_STR" {} \;
+

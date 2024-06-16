@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# SPDX-FileCopyrightText: 2024 Ferenc Nandor Janky <ferenj@effective-range.com>
+# SPDX-FileCopyrightText: 2024 Attila Gombos <attila.gombos@effective-range.com>
+# SPDX-License-Identifier: MIT
+
+set -e -x -o pipefail
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+KICAD_PRJ_BASE_PATH="$1" 
+shift 1 || true
+
+PCB_JSON="$1"
+shift 1 || true
+
+if [ -d "$KICAD_PRJ_BASE_PATH" ];then
+ # If directory was specified, search for *.kicad_pcbs in that directory
+ echo "Looking for .kicad_pcb files in $KICAD_PRJ_BASE_PATH"
+ CANDIDATES="$(find "$KICAD_PRJ_BASE_PATH" -maxdepth 1 -name \*.kicad_pcb )"
+ if [ -z "$CANDIDATES" ] || [ $(echo "$CANDIDATES" | wc -l) -ne 1 ]; then
+     echo "Error: Can't determine pcb files in $KICAD_PRJ_BASE_PATH" 1>&2 
+     echo "Please specify the project prefix explicitly instead of the directory!" 1>&2
+     exit 1
+ fi
+ KICAD_PRJ_BASE_PATH="$(dirname "$CANDIDATES")/$(basename "$CANDIDATES" .kicad_pcb)"
+ echo "Found $KICAD_PRJ_BASE_PATH.kicad_pcb"
+fi
+
+# Using default pcb.json if name not specified
+if [ -z "$PCB_JSON" ]; then
+    PCB_JSON="$(dirname "$KICAD_PRJ_BASE_PATH")/pcb.json"
+fi
+
+# Verifying files existence
+if ! [ -f "$KICAD_PRJ_BASE_PATH.kicad_pcb" ] || ! [ -f "$PCB_JSON" ]; then
+    echo "Usage: $0 <KiCAD project path with base name>|<KiCad Project Dir> [pcb.json file name (default=pcb.json beside the project files)]"
+    exit 1
+fi
+
+# Determining layers to export
+CU_LAYERS=$(python3 -u <<EOF
+import json
+with open("$PCB_JSON") as f:
+    pcb_json = json.load(f)
+    def_layers = ['F.Cu','B.Cu','F.Paste','B.Paste','F.Mask','B.Mask','F.Silkscreen','B.Silkscreen','Edge.Cuts']
+    layers = list(set(pcb_json.get('layers',[]) + def_layers))
+    print(','.join(layers))
+EOF
+)
+
+CURRENT_VER=$(python3 -u <<EOF
+with open("$PCB_JSON") as f:
+    import json
+    pcb_json = json.load(f)
+    print(pcb_json.get('version',"0.0.0"))
+EOF
+)
+
+KICAD_PRJ_NAME="$(basename "$KICAD_PRJ_BASE_PATH" )"
+
+# run ERC and DRC
+
+# NOTE: exclusions are not processed, use errors only for now
+kicad-cli sch erc --format json -o "$KICAD_PRJ_NAME-erc.json" --severity-error --exit-code-violations "$KICAD_PRJ_BASE_PATH.kicad_sch"
+
+kicad-cli  pcb drc --format json -o "$KICAD_PRJ_NAME-drc.json" --schematic-parity --severity-all --exit-code-violations  "$KICAD_PRJ_BASE_PATH.kicad_pcb"
+rm -rf gerbers
+mkdir gerbers
+
+# JLCPCB Profile gerbers
+kicad-cli pcb export gerbers --output ./gerbers/ -l $CU_LAYERS, --ev --no-x2 --no-netlist --subtract-soldermask  "$KICAD_PRJ_BASE_PATH.kicad_pcb"
+
+kicad-cli pcb export drill --output ./gerbers/ --format excellon --drill-origin absolute --excellon-units mm --excellon-zeros-format decimal --excellon-oval-format alternate --generate-map --map-format gerberx2 "$KICAD_PRJ_BASE_PATH.kicad_pcb"
+
+zip -r "$KICAD_PRJ_NAME-v$CURRENT_VER.zip" gerbers
+
+rm -rf gerbers
+
+# Create schematics pdf
+kicad-cli sch export pdf -o "$KICAD_PRJ_NAME-v$CURRENT_VER.pdf" "$KICAD_PRJ_BASE_PATH.kicad_sch"
+
+# Create IBOM:
+IBOM_DEST_DIR="$(realpath -m --relative-to="$(dirname "$KICAD_PRJ_BASE_PATH")" .)"
+xvfb-run "/usr/share/InteractiveHtmlBom/InteractiveHtmlBom/generate_interactive_bom.py" --dark-mode --highlight-pin1 selected --no-browser --include-tracks --include-nets --layer-view F --dest-dir "$IBOM_DEST_DIR" "$KICAD_PRJ_BASE_PATH.kicad_pcb"
+mv ibom.html "$KICAD_PRJ_NAME-v$CURRENT_VER-ibom.html"
+# Copy pcb file  (for EuroCircuits fab house for example)
+cp -v "$KICAD_PRJ_BASE_PATH.kicad_pcb" "./$KICAD_PRJ_NAME-v$CURRENT_VER.kicad_pcb"
+
+# Create bom xlsx
+
+
+kicad-cli sch export python-bom -o bom.xml "$KICAD_PRJ_BASE_PATH.kicad_sch"
+
+MPN_COL_NAME=$(python3 -u <<EOF
+with open("$PCB_JSON") as f:
+    import json
+    pcb_json = json.load(f)
+    print(pcb_json.get('MPN_col',"MPN"))
+EOF
+)
+
+"$SCRIPT_DIR/pcb-gen-bom" --mpn-col "$MPN_COL_NAME" --xlsx -o "./$KICAD_PRJ_NAME-v$CURRENT_VER-bom" ./bom.xml
+rm -f bom.xml
+
+# Create 3DModels
+KICAD_DEFINES="-D KICAD6_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD7_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD8_3DMODEL_DIR=/usr/share/kicad-packages3D"
+kicad-cli pcb export vrml  $KICAD_DEFINES -o ./$KICAD_PRJ_NAME-v$CURRENT_VER.wrl "$KICAD_PRJ_BASE_PATH.kicad_pcb"
+kicad-cli pcb export step  $KICAD_DEFINES -o ./$KICAD_PRJ_NAME-v$CURRENT_VER.step --subst-models  "$KICAD_PRJ_BASE_PATH.kicad_pcb"
+
+tar -cf $KICAD_PRJ_NAME-v$CURRENT_VER-3dmodels.tar ./$KICAD_PRJ_NAME-v$CURRENT_VER.step ./$KICAD_PRJ_NAME-v$CURRENT_VER.wrl
+pigz --best $KICAD_PRJ_NAME-v$CURRENT_VER-3dmodels.tar
+
+rm -f ./$KICAD_PRJ_NAME-v$CURRENT_VER.step ./$KICAD_PRJ_NAME-v$CURRENT_VER.wrl
