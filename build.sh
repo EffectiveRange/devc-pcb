@@ -6,4 +6,4 @@
 
 set -e -x
 export TOKEN=$(gh auth status -t 2>&1 | grep Token: | head -n1 | awk '{print $3}') 
-docker build --secret id=GITHUB_TOKEN,env=TOKEN $(dirname $0) 
+docker build  $(dirname $0) 

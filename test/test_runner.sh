@@ -12,7 +12,6 @@ rm -rf pcb-micdevice build
 
 # Running in docker already
 if [ -z "$IMAGE_ID" ]; then
-    GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN)
     su kicad -c "mkdir build"
     su  kicad -c "git clone --depth=1  https://github.com/EffectiveRange/pcb-micdevice.git"
     su  kicad -c /home/kicad/test/test.sh
