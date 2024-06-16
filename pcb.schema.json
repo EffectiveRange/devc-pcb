@@ -19,7 +19,12 @@
             "description": "Extra layers to consider on top of the defaults for a 2 layer PCB: ['F.Cu','B.Cu','F.Paste','B.Paste','F.Mask','B.Mask','F.Silkscreen','B.Silkscreen','Edge.Cuts']",
             "items": {
                 "type": "string"
-            }
+            },
+            "uniqueItems": true
         }
-    }
+    },
+    "required": [
+        "name",
+        "version"
+    ]
 }
