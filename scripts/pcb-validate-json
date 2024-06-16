@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2024 Ferenc Nandor Janky <ferenj@effective-range.com>
+# SPDX-FileCopyrightText: 2024 Attila Gombos <attila.gombos@effective-range.com>
+# SPDX-License-Identifier: MIT
+
+import argparse
+import jsonschema
+import json
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "-s", "--schema", help="Path to schema to be used", required=True
+    )
+    parser.add_argument(
+        "jsonfile",
+        help="Path to json file to validate against the schema",
+    )
+    args = parser.parse_args()
+
+    with open(args.schema) as f:
+        schema = json.load(f)
+    with open(args.jsonfile) as f:
+        jsonfile = json.load(f)
+
+    jsonschema.validate(jsonfile, schema)
+
+
+if __name__ == "__main__":
+    main()

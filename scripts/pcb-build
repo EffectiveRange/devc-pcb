@@ -32,6 +32,10 @@ if [ -z "$PCB_JSON" ]; then
     PCB_JSON="$(dirname "$KICAD_PRJ_BASE_PATH")/pcb.json"
 fi
 
+# Validating PCB JSON 
+pcb-validate-json -s /usr/share/pcb-release/pcb.schema.json "$PCB_JSON"
+
+
 # Verifying files existence
 if ! [ -f "$KICAD_PRJ_BASE_PATH.kicad_pcb" ] || ! [ -f "$PCB_JSON" ]; then
     echo "Usage: $0 <KiCAD project path with base name>|<KiCad Project Dir> [pcb.json file name (default=pcb.json beside the project files)]"
