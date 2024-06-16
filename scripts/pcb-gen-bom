@@ -126,7 +126,7 @@ def get_args():
     parser.add_argument(
         "-o", "--output", help="Path to output file without extension", default="out"
     )
-    parse.add_argument(
+    parser.add_argument(
         "--mpn-col",
         help="Name of the column that contains the MPN(Manufacturer Product Number)",
         default="MPN",
