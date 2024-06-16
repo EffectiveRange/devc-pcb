@@ -1,4 +1,4 @@
-# pcb-devc ![CI](https://github.com/GlobalScope-HUN/pcb-devc/actions/workflows/release.yml/badge.svg)
+# pcb-devc ![CI](https://github.com/EffectiveRange/pcb-devc/actions/workflows/release.yml/badge.svg)
 
 This docker container aggregates everything that can be used for KiCAD PCB project CI (test and release). It can be easily integrated by using the [devcontainers](https://github.com/devcontainers/ci) CI action.
 The docker images are available under [https://hub.docker.com/repository/docker/effectiverange/devc-pcb/tags](https://hub.docker.com/repository/docker/effectiverange/devc-pcb/tags)

@@ -1,17 +1,25 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://example.com/product.schema.json",
-    "title": "Product",
-    "description": "A product from Acme's catalog",
+    "$id": "https://raw.githubusercontent.com/EffectiveRange/devc-pcb/main/pcb.schema.json",
+    "title": "PCBProj",
+    "description": "A data object describing a KiCAD based project for CI automation",
     "type": "object",
     "properties": {
-        "productId": {
-            "description": "The unique identifier for a product",
-            "type": "integer"
+        "version": {
+            "description": "The current version number of the project",
+            "type": "string",
+            "$ref": "https://raw.githubusercontent.com/microsoft/json-schemas/main/spfx/semver.schema.json"
         },
-        "productName": {
-            "description": "Name of the product",
+        "name": {
+            "description": "Name of the project",
             "type": "string"
+        },
+        "layers": {
+            "type": "array",
+            "description": "Extra layers to consider on top of the defaults for a 2 layer PCB: ['F.Cu','B.Cu','F.Paste','B.Paste','F.Mask','B.Mask','F.Silkscreen','B.Silkscreen','Edge.Cuts']",
+            "items": {
+                "type": "string"
+            }
         }
     }
 }
