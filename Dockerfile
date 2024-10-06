@@ -1,4 +1,4 @@
-FROM kicad/kicad:8.0.4
+FROM kicad/kicad:8.0.5
 
 USER root
 
