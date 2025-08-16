@@ -108,7 +108,7 @@ EOF
 rm -f bom.xml
 
 # Create 3DModels
-KICAD_DEFINES="-D KICAD6_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD7_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD8_3DMODEL_DIR=/usr/share/kicad-packages3D"
+KICAD_DEFINES="-D KICAD6_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD7_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD8_3DMODEL_DIR=/usr/share/kicad-packages3D -D KICAD9_3DMODEL_DIR=/usr/share/kicad-packages3D"
 kicad-cli pcb export vrml  $KICAD_DEFINES -o ./$KICAD_PRJ_NAME-v$CURRENT_VER.wrl "$KICAD_PRJ_BASE_PATH.kicad_pcb"
 kicad-cli pcb export step  $KICAD_DEFINES -o ./$KICAD_PRJ_NAME-v$CURRENT_VER.step --subst-models  "$KICAD_PRJ_BASE_PATH.kicad_pcb"
 
