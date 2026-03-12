@@ -12,9 +12,9 @@ rm -rf pcb-micdevice build
 
 # Running in docker already
 if [ -z "$IMAGE_ID" ]; then
-    su kicad -c "mkdir build"
-    su  kicad -c "git clone --depth=1  https://github.com/EffectiveRange/pcb-micdevice.git"
-    su  kicad -c /home/kicad/test/test.sh
+    mkdir build
+    git clone --depth=1  https://github.com/EffectiveRange/pcb-micdevice.git
+    /home/kicad/test/test.sh
 else
 mkdir build
 git clone --depth=1  https://github.com/EffectiveRange/pcb-micdevice.git
