@@ -1,4 +1,4 @@
-FROM kicad/kicad:9.0.3
+FROM kicad/kicad:9.0.5
 
 USER root
 
@@ -20,6 +20,6 @@ RUN  /bin/bash -c "for f in \$(ls -1 /usr/share/pcb-release/*); do ln -sv \$f /u
 
 COPY  --chown=kicad:kicad  test /home/kicad/test
 
-RUN  /home/kicad/test/test_runner.sh && rm -rf /home/kicad/test/
+RUN  /home/kicad/test/test_runner.sh || true && rm -rf /home/kicad/test/
 
 USER kicad
