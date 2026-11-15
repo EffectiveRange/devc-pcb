@@ -2,7 +2,7 @@ FROM kicad/kicad:10.0.6
 
 USER root
 
-RUN apt update && apt install -y --no-install-recommends apt-utils python3-jsonschema python3-pandas python3-openpyxl python3-lxml xvfb git pigz
+RUN apt update && apt install -y --no-install-recommends apt-utils python3-jsonschema python3-pandas python3-openpyxl python3-lxml xvfb git pigz zip
 
 RUN mkdir -p /usr/share/ && \
     git clone -b master --depth=1 https://github.com/openscopeproject/InteractiveHtmlBom.git /usr/share/InteractiveHtmlBom && \
